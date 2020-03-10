@@ -41,7 +41,7 @@ print(ChirpKernel)
 
 
 #Number of observations
-N = 100
+N = 50
 # PRI length in Seconds
 PRI=0.236
 CHUNKSIZE = int(44100*PRI) # fixed chunk size
