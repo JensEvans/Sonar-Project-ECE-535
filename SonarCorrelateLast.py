@@ -19,9 +19,6 @@ def envelope(signal):
     envelope = abs(signal)# np.sqrt(signal.imag**2 + signal.real**2)
     return envelope
 
-def Smoothing(DataArray, Window=101, PolyOrder=3):
-    DataArray = sig.savgol_filter(DataArray, Window, PolyOrder)
-    return DataArray
 
 def butter_bandpass(lowcut, highcut, fs, order=5):
     nyq = 0.5 * fs
@@ -37,11 +34,10 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
 
 # Import audio for cross correlation
 samplerate, ChirpKernel = wfile.read('C:\\Users\\jense\\ChirpTrain.wav', mmap=False)
-print(ChirpKernel)
 
 
 #Number of observations
-N = 50
+N = 10
 # PRI length in Seconds
 PRI=0.236
 CHUNKSIZE = int(44100*PRI) # fixed chunk size
@@ -71,12 +67,10 @@ print('Done.')
 
 #Process Data
 # Envelope Hilbert Transform
-#MicData = MicData*(1000/max(MicData))
 MicData = butter_bandpass_filter(MicData, 3.5e3, 6.5e3, fs=44100, order=1)
 MicData = envelope(MicData)
 #Reshape
 MicData = MicData.reshape(N,int(x*CHUNKSIZE/N))
-print('dimensions of MicData',MicData.shape)
 
 # Store Envelope without Cross Correlation for later Comparison
 GatedEnvelope=np.sum(MicData,axis=0)
@@ -91,13 +85,16 @@ ChirpKernel = np.roll(ChirpKernel,int(len(ChirpKernel)/2))
 #Normalize Chirpkernel for a better correlation
 ChirpKernel = ChirpKernel*(np.amax(MicData)/np.amax(ChirpKernel))
 #Test Point
+plt.figure(1)
 plt.plot(ChirpKernel)
 # Find Envelope of ChirpKernel
 ChirpKernel = envelope(ChirpKernel)
 
 # Compares ChirpKernel preenvolope vs envelope vs MicData
+
 plt.plot(ChirpKernel)
 plt.plot(MicData[5,:])
+plt.show()
 
 # Cross Correlate Signals row by row
 x=0
@@ -107,37 +104,37 @@ while x < N:
 
 
 
-
 #Gate Data
 GatedData=np.sum(MicData,axis=0)
 
 # Find Max
 max_value = max(GatedData)
 max_index = np.argmax(GatedData)
-print('this is the max index', max_index)
 
 GatedData = np.roll(GatedData,-1*max_index)
 MicData = np.roll(MicData,-1*max_index)
 
 #Index Peaks
-peaks, _ = find_peaks(GatedData, height=10*np.median(GatedData), distance=200)
+peaks, _ = find_peaks(GatedData, height=2*np.median(GatedData), distance=200)
 
 
 
-dx=343/rate
+dx=343/(rate*2)
 peakdistance=dx*peaks
 
 print('The Number of target is', (len(peakdistance)))
-print("The distance to targets in meters is", peakdistance/2)
+print("The distance to targets in meters is", peakdistance)
+
+# Create a distance vector so things are in meters /2 is to compensate
+# for the return trip
+t=np.arange(0,len(GatedData))*dx
 
 # plot data
-fig, axs = plt.subplots(6)
-axs[0].plot(MicData[0,:])
-axs[1].plot(MicData[1,:])
-axs[2].plot(MicData[2,:])
-axs[3].plot(MicData[3,:])
-axs[4].plot(MicData[4,:])
-axs[5].semilogy(GatedData)
-axs[5].semilogy(peaks,GatedData[peaks], 'x')
+plt.figure(2)
+plt.title('Sonar Return Data')
+plt.xlabel('Distance in Meters')
+plt.ylabel('Gain in dB')
+plt.semilogy(t,GatedData)
+plt.semilogy(peaks*dx,GatedData[peaks], 'x')
 plt.show()
 # close stream
